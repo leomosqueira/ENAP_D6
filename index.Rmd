@@ -56,7 +56,7 @@ A partir destas consultas, foram gerados arquivos em formato texto e importados 
 
 Para algumas tabelas foram considerados apenas os anos 2017 e 2018 devido à imensa quantidade de registros no banco de dados.
 
-# As telas seguintes tratarão da importação e tratamento dos dados
+# Importação, tratamento e manipulação dos dados
 
 ## Processos Judiciais
 
@@ -145,7 +145,7 @@ Usuarios <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Usuario.tx
 
 ## Unidades
 
-A fonte de dados ___Unidades___ indica todas as unidades da AGU espalhadas pelo Brasil e possui os seguintes dados:
+A fonte de dados __Unidades__ indica todas as unidades da AGU espalhadas pelo Brasil e possui os seguintes dados:
 
 - Identificador da Unidade;
 - Nome da Unidade;
@@ -165,9 +165,11 @@ Unidades <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Unidade.tx
 
 ## Processos Judiciais: Tabela Final
 
-Mesclando todos os dados de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais, o resultado apresenta uma gama de possibilidades de análise. 
+Mesclando todos os dados de __Unidades__, __Setores__, __Pastas__ e __Processos__, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais, o resultado apresenta uma gama de possibilidades de análise. 
 
-A princípio, é possível constatar as unidades com as maiores quantidades de processos (dados de 2017 e 2018 até o mês de outubro) e a quantidade média de processos por Região.
+A princípio, é possível constatar a quantidade de processos na __AGU__, as unidades com as maiores quantidades de processos e a quantidade média de processos por Região, __considerando que a base de dados abrange os anos de 2017 e 2018 até o mês de outubro__.
+
+## Quantidade de processos na AGU
 
 ```{r Processos_Final_1, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 
@@ -181,7 +183,34 @@ Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final
 
 #O objetivo aqui era unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
 
+
+Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
+  group_by(Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla e Ano_Ajuizamento
+  summarize(Qtde_processos_total = n()) #sumarizo a quantidade de registros em um novo objeto Qtde_processos
+ 
+ggplot(data = Unidades_Mais_Processos,
+       aes(x = as.character(Processo_Judicial_Ano_Ajuizamento), #eixo x será o Processo_Judicial_Ano_Ajuizamento (transformei em char para não ficar número quebrado)
+           y = Qtde_processos_total, #eixo y será a Qtde_processos_total
+           group = Processo_Judicial_Ano_Ajuizamento, #os dados serão agrupados por Processo_Judicial_Ano_Ajuizamento
+           fill = Processo_Judicial_Ano_Ajuizamento)) + #e as barras serão preenchidas
+  geom_bar(stat = "identity", #replica as configurações estéticas para as barras do gráfico
+           alpha = 0.6,
+           position = "dodge") +
+  geom_text(aes(label=round(Qtde_processos_total,0)), #geom_text adiciona mais uma camada ao gráfico. Uma camada de texto.
+            #label coloca nomes sobre as barras. Uso round para arredondar a média para 0 casas decimais.   
+            color = "black", #aqui eu mudo a cor do label/do texto, que é um número, para PRETO.  
+            size = 5, #aumento o tamanho do texto para 5 para ficar mais visível
+            vjust = 2, #ajuste de posição vertical e 
+            hjust = 0.5) + #ajuste de posição horizontal do quantitativo 
+labs(x = "Ano", #nomeia o eixo X
+     y = "Quantidade de processos em toda a AGU")+ #nomeia o eixo Y
+  guides(fill=FALSE) #oculta a legenda do gráfico
+
+
 ```
+
+__É notável a grande quantidade, a mais, de processos em 2017.__
+
 
 ## Unidades com mais Processos (2017/2018)
 
@@ -189,7 +218,7 @@ Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final
 
 #Em seguida, comparar as quantidades apresentadas na tabela e analisar os dados
 
-Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
+Unidades_Mais_Processos2 <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
   group_by(Unidade_Sigla, Unidade_Regiao, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Unidade_Regiao e Ano_Ajuizamento
   summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto Qtde_processos
   spread(Processo_Judicial_Ano_Ajuizamento, Qtde_processos, fill = 0) %>% #a coluna "Processo_Judicial_Ano_Ajuizamento" vira duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver falor, "fill" (preenche) com zero.
@@ -198,7 +227,7 @@ Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judi
   filter(Unidade_Sigla!="PGU") %>% #filtro o resultado, eliminando a linha em que a Unidade_Sigla é PGU
   head(30) #restrinjo meu resultado a apenas as 30 primeiras linhas
 
-head(Unidades_Mais_Processos)
+head(Unidades_Mais_Processos2)
 ```
 
 As unidades com mais processos não necessariamente são as maiores, mas certamente são as que possuem advogados mais eficientes, uma vez que o processo é contabilizado pela sua data de ajuizamento, ou de julgamento (processos finalizados).
@@ -207,7 +236,7 @@ As unidades com mais processos não necessariamente são as maiores, mas certame
 
 ```{r Processos_Final_3,  message = FALSE, warning = FALSE, echo = FALSE}
 
-amostra <- Unidades_Mais_Processos %>%
+amostra <- Unidades_Mais_Processos2 %>%
   as_survey(fpc = total) #a contagem total de dados = o objeto "total"
 
 variacao_media <- amostra %>%
@@ -220,10 +249,10 @@ variacao_media <- amostra %>%
                                          #se em algum momento o summarize vem sem o group_by antes, eu sumarizo pelo data.frame inteiro. Sem ser por grupo.
                                          vartype = "ci")) #"ci" é o vartype para intervalos de confiança.
 
-head(variacao_media)
+head(variacao_media) #as colunas api_diff_media_low é a diferença mínima e a api_diff_media_upp é a diferença máxima, ambas criadas pelo survey_mean
 ```
 
-Para a criação dessa tabela foram consideradas as 30 unidades com mais processos no período de 2017 a 2018 (mês de outubro). Novamente, as regiões com mais processos não necessariamente são as maiores, mas certamente são as que possuem advogados mais eficientes.
+Para a criação dessa tabela foram consideradas as 30 unidades com mais processos no período de 2017 a 2018 (mês de outubro). Novamente, as regiões com mais processos não necessariamente são as maiores, pois podem ser as que possuem advogados mais eficientes ou, ainda, as que recebem processos mais comuns.
 
 ## Médias de processos por Região (incluindo margens de erros)
 

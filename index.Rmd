@@ -165,7 +165,11 @@ Unidades <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Unidade.tx
 
 ## Processos Judiciais: Tabela Final
 
-```{r Processos_Final, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
+Mesclando todos os dados de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais, o resultado apresenta uma gama de possibilidades de análise. 
+
+A princípio, é possível constatar as unidades com as maiores quantidades de processos (dados de 2017 e 2018 até o mês de outubro) e a quantidade média de processos por Região.
+
+```{r Processos_Final_1, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 
 Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
                select (Processo_Judicial_ID, Pasta_ID, Unidade_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
@@ -176,6 +180,12 @@ Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final
                select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_Regiao, Unidade_UF)) #faço aqui a seleção das colunas desejadas
 
 #O objetivo aqui era unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
+
+```
+
+## Unidades com mais Processos (2017/2018)
+
+```{r Processos_Final_2,  message = FALSE, warning = FALSE, echo = FALSE}
 
 #Em seguida, comparar as quantidades apresentadas na tabela e analisar os dados
 
@@ -188,8 +198,17 @@ Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judi
   filter(Unidade_Sigla!="PGU") %>% #filtro o resultado, eliminando a linha em que a Unidade_Sigla é PGU
   head(30) #restrinjo meu resultado a apenas as 30 primeiras linhas
 
+head(Unidades_Mais_Processos)
+```
+
+As unidades com mais processos não necessariamente são as maiores, mas certamente são as que possuem advogados mais eficientes, uma vez que o processo é contabilizado pela sua data de ajuizamento, ou de julgamento (processos finalizados).
+
+## Regiões com mais Processos (2017/2018)
+
+```{r Processos_Final_3,  message = FALSE, warning = FALSE, echo = FALSE}
+
 amostra <- Unidades_Mais_Processos %>%
-  as_survey(fpc = total) #ids = 1,strata = Unidade_Sigla,
+  as_survey(fpc = total) #a contagem total de dados = o objeto "total"
 
 variacao_media <- amostra %>%
   mutate(api_diff=`2017`-`2018`) %>% #crio uma NOVA COLUNA com a diferença das quantidades de processos de 2017 e 2018
@@ -200,6 +219,16 @@ variacao_media <- amostra %>%
                                          #o summarize vem sempre depois de um group_by
                                          #se em algum momento o summarize vem sem o group_by antes, eu sumarizo pelo data.frame inteiro. Sem ser por grupo.
                                          vartype = "ci")) #"ci" é o vartype para intervalos de confiança.
+
+head(variacao_media)
+```
+
+Para a criação dessa tabela foram consideradas as 30 unidades com mais processos no período de 2017 a 2018 (mês de outubro). Novamente, as regiões com mais processos não necessariamente são as maiores, mas certamente são as que possuem advogados mais eficientes.
+
+## Médias de processos por Região (incluindo margens de erros)
+
+```{r Processos_Final_4, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
+
 
 variacao_media %>% 
   ggplot(aes(x = Unidade_Regiao, #dentro do ggplot eu coloco as estéticas (AES) de cor, forma. No meu eixo X eu quero Região.
@@ -232,6 +261,11 @@ variacao_media %>%
 
 ```
 
+## Análise
+
+Observa-se no gráfico apresentado que a margem de erro no cálculo da média de processos por região é muito grande para a primeira e segunda regiões, mas isso se deve ao fato de que em cada uma delas há muito mais processos finalizados em 2017. 
+
+É possível deduzir que o ano eleitoral influencie no andamento dos julgamentos dos processos judiciais em trâmite.
 
 ## Slide with Plot
 

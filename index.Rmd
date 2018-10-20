@@ -141,7 +141,6 @@ Usuarios <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Usuario.tx
                        fill = TRUE, 
                        quote = "", 
                        encoding = "latin1")
-
 ```
 
 ## Unidades
@@ -162,12 +161,11 @@ Unidades <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Unidade.tx
                        header = TRUE, 
                        sep = "\t", 
                        encoding = "latin1")
-
 ```
 
 ## Processos Judiciais: Tabela Final
 
-```{r Processos_Final, echo = FALSE}
+```{r Processos_Final, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 
 Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
                select (Processo_Judicial_ID, Pasta_ID, Unidade_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
@@ -175,16 +173,62 @@ Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final
   inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
                select(Processo_Judicial_ID, Processo_Judicial_Valor_Causa, Processo_Judicial_Ano_Ajuizamento)) %>% #faço aqui a seleção das colunas desejadas
   inner_join(Unidades %>% #faço um inner join com o frame Unidades
-               select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_UF)) #faço aqui a seleção das colunas desejadas
+               select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_Regiao, Unidade_UF)) #faço aqui a seleção das colunas desejadas
 
+#O objetivo aqui era unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
 
-#O objetivo aqui é unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
+#Em seguida, comparar as quantidades apresentadas na tabela e analisar os dados
 
 Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
-  group_by(Unidade_Sigla) %>% #agrupo por Unidade_Sigla
-  summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto qtde_processos
-  arrange(desc(Qtde_processos)) %>% #ordeno, de forma decrescente, o resultado do objeto criado anteriormente
-  head(10) #restrinjo meu resultado a apenas as 10 primeiras linhas
+  group_by(Unidade_Sigla, Unidade_Regiao, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Unidade_Regiao e Ano_Ajuizamento
+  summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto Qtde_processos
+  spread(Processo_Judicial_Ano_Ajuizamento, Qtde_processos, fill = 0) %>% #a coluna "Processo_Judicial_Ano_Ajuizamento" vira duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver falor, "fill" (preenche) com zero.
+  arrange(desc(`2017`,`2018`)) %>% #ordeno, de forma decrescente e pelas colunas `2017` e `2018`, o resultado do objeto criado anteriormente
+  mutate(total = sum(`2017`,`2018`)) %>% #crio uma coluna com os totais de processos dos dois anos por linha
+  filter(Unidade_Sigla!="PGU") %>% #filtro o resultado, eliminando a linha em que a Unidade_Sigla é PGU
+  head(30) #restrinjo meu resultado a apenas as 30 primeiras linhas
+
+amostra <- Unidades_Mais_Processos %>%
+  as_survey(fpc = total) #ids = 1,strata = Unidade_Sigla,
+
+variacao_media <- amostra %>%
+  mutate(api_diff=`2017`-`2018`) %>% #crio uma NOVA COLUNA com a diferença das quantidades de processos de 2017 e 2018
+  group_by(Unidade_Regiao) %>% #se a minha COMPARAÇÃO está por Região e Sigla, posso escolher e o mais adequado é agrupar por Região
+    summarize(api_diff_media = survey_mean(api_diff, #quando eu quero A MÉDIA DE UMA VARIÁVEL QUANTITATIVA, uso survey_mean. EU PRECISO NOMEAR ESSA VARIÁVEL
+                                         #quando a variável não for quantitativa, mas qualitativa, o survey_mean retorna PROPORÇÕES do group by.
+                                         #se eu não coloco nada dentro do survey_mean, ele retorna PROPORÇÕES do group by.
+                                         #o summarize vem sempre depois de um group_by
+                                         #se em algum momento o summarize vem sem o group_by antes, eu sumarizo pelo data.frame inteiro. Sem ser por grupo.
+                                         vartype = "ci")) #"ci" é o vartype para intervalos de confiança.
+
+variacao_media %>% 
+  ggplot(aes(x = Unidade_Regiao, #dentro do ggplot eu coloco as estéticas (AES) de cor, forma. No meu eixo X eu quero Região.
+             y = api_diff_media,  #no meu Y eu quero a diferença média.
+             fill = Unidade_Regiao, #quero adicionar um preenchimento nas barras. FILL deixa as colunas cinzas
+             color = Unidade_Regiao, #color gera cor para as barras. É NECESSÁRIO TER FILL para ter COLOR
+             ymax = api_diff_media_upp, #preciso de ymax e ymin para construir uma barra de erro. _upp no máximo da variável criada anteriormente
+             ymin = api_diff_media_low)) + #_low no mínimo da variável criada anteriormente
+  #essas duas variáveis aqui em cima (api_diff_media_upp e api_diff_media_low) foram criadas ali no "summarize" quando especifiquei que meu vartype ? "ci".
+  #Automaticamente o survey_mean cria uma diferença máxima e uma diferença mínima
+  geom_bar(stat = "identity", #aqui estou construindo um gráfico de barras, ou seja, criando uma camada das barras. 
+           #Construo as barras usando as estéticas que informei antes.
+           #stat = "identity" (como ele vai olhar o dado que entra). Ou seja, o tamanho das colunas vai ser exatamente o tamanho que está em Y
+           #significa que eu estou falando que as estéticas serão idênticas em X e Y
+           alpha = 0.6) + #É um outro atributo do geom_bar que significa "transparência". 
+  #É só um "embelezamento". Quanto menor o valor, mais clara fica a cor.
+  #a próxima geometria que tem que entrar no gráfico é a geometria de barra de erro. Essa geometria demanda Y máximo e Y mínimo (que ficam fora e dentro da barra do gráfico, respectivamente).
+  #Como eu defini a cor pela Região no gráfico de barras, a barra de erro vai ter a cor da Região. Se não tiver a linha "color = algumacoisa", a barra de erro ficará preta.
+  geom_errorbar(width = 0, #usei aqui dois atributos que não são obrigatórios no geom_errorbar. width = zero deixa a largura do traço horizontal zerado, invisível.
+                size=3) + #aqui indico que o traço vertical fica mais grosso
+  geom_text(aes(label=round(api_diff_media,0)), #geom_text adiciona mais uma camada ao gráfico. Uma camada de texto.
+            #label coloca nomes sobre as barras. Uso round para arredondar a média para 0 casas decimais.   
+            color = "black", #aqui eu mudo a cor do label/do texto, que é um número, para PRETO.  
+            size = 5, #aumento o tamanho do texto para 5 para ficar mais visível
+            #o número preto fica exatamente no meio da barra porque puxou as definições da estética, ou seja, está colocando o Y exatamente aonde está o Y
+            vjust = -0.5, #ajustes de posição vertical e 
+            hjust = -0.5) +  #de posição horizontal
+  labs(x = "Regiões das Unidades da AGU",
+       y = "Quantidade média de processos")
 
 ```
 

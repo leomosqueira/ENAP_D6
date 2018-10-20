@@ -27,7 +27,7 @@ Embora não seja possível transpor aqui todos os detalhes do VTJ, ainda é poss
 
 A __Advocacia Geral da União__ (AGU) possui procuradorias, escritórios e corregedorias espalhadas por todo o território nacional. Cada uma destas, consideradas Unidades da AGU, gera processos judiciais da própria região, os quais são separados em pastas (dossiês), ou os recebe de outras unidades para dar prosseguimento aos casos tratados. 
 
-Trabalham nas unidades, lotados em setores, os usuários do sistema Sapiens (uma ferramenta criada por um procurador da própria AGU e que se estabeleceu como a principal aplicação para manter dados referentes, principalmente, a pastas, processos, tarefas, atividades e usuários).
+Trabalham nas unidades os usuários do sistema Sapiens (uma ferramenta criada por um procurador da própria AGU e que se estabeleceu como a principal aplicação para manter dados referentes, principalmente, a pastas, processos, tarefas, atividades e usuários).
 
 ##
 
@@ -49,14 +49,12 @@ Foram resgatados da base de dados do Sapiens, utilizando a linguagem SQL, os dad
 
 - Processos Judiciais;
 - Pastas;
-- Setores;
-- Lotações;
 - Usuários (e cargos dos mesmos); e
 - Unidades.
 
 A partir destas consultas, foram gerados arquivos em formato texto e importados para o RStudio.
 
-Para algumas tabelas foram considerados apenas o ano 2018 devido à imensa quantidade de registros no banco de dados.
+Para algumas tabelas foram considerados apenas os anos 2017 e 2018 devido à imensa quantidade de registros no banco de dados.
 
 # As telas seguintes tratarão da importação e tratamento dos dados
 
@@ -67,7 +65,7 @@ A primeira fonte de dados, __Processos Judiciais__, possui os seguintes dados:
 - Identificador do Processo Judicial;
 - Identificador do Órgão Julgador;
 - Valor da Causa do Processo Judicial;
-- Data de Ajuizamento do Processo Judicial;
+- Ano de Ajuizamento do Processo Judicial;
 - Indicador de Processo Judicial Eletrônico; e
 - Número do Processo Judicial.
 
@@ -91,7 +89,7 @@ gc() #garbage colector, limpa da memória o que eu não vou usar mais.
 Processos_Judiciais <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Processo_Judicial.txt", #endereço do arquivo na minha máquina
                                   header = TRUE, #indicativo de cabeçalho no arquivo
                                   dec = ".", #os decimais serão separados por "."
-                                  sep = "\t", #o separador das colunas será um espaço
+                                  sep = ";", #o separador das colunas será um espaço
                                   na.strings = "NA", #se houverem células sem nada, colocar "NA" no lugar
                                   fill = TRUE, 
                                   quote = "", 
@@ -104,7 +102,7 @@ A seguinte fonte de dados, __Pastas__, possui os seguintes dados:
 
 - Identificador da Pasta;
 - Identificador do Processo Judicial;
-- Identificador do Setor;
+- Identificador da Unidade;
 - Numeração Única da Pasta (NUP);
 - Descrição da Pasta;
 - Data de Abertura da Pasta; e
@@ -115,60 +113,11 @@ A seguinte fonte de dados, __Pastas__, possui os seguintes dados:
 Pastas <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Pasta.txt", 
                      header = TRUE, 
                      dec = ".", 
-                     sep = "\t", 
+                     sep = ";", 
                      na.strings = "NA", 
                      fill = TRUE, 
                      quote = "", 
                      encoding = "latin1")
-
-```
-
-## Setores
-
-A fonte de dados __Setores__ possui os seguintes dados:
-
-- Identificador do Setor;
-- Identificador da Unidade;
-- Nome do Setor;
-- Sigla do Setor; e
-- Indicador de Setor Ativo ou Inativo.
-
-```{r Setores, echo = FALSE}
-
-Setores <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Setor.txt", 
-                      header = TRUE, 
-                      dec = ".", 
-                      sep = "\t", 
-                      na.strings = "NA", 
-                      fill = TRUE, 
-                      quote = "", 
-                      encoding = "latin1"
-                      )
-
-```
-
-## Lotação
-
-A fonte de dados __Lotação__ possui os seguintes dados:
-
-- Identificador da Lotação;
-- Identificador do Setor;
-- Identificador do Usuário;
-- Data de Criação da Lotação;
-- Data de conclusão da Lotação (é a data em que o usuário é retirado dessa lotação); e
-- Indicador de Lotação Principal ou não.
-
-```{r Lotacao, echo = FALSE}
-
-Lotacao <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Lotacao.txt", 
-                      header = TRUE, 
-                      dec = ".", 
-                      sep = "\t", 
-                      na.strings = "NA", 
-                      fill = TRUE, 
-                      quote = "", 
-                      encoding = "latin1")
-
 ```
 
 ## Usuários
@@ -176,6 +125,7 @@ Lotacao <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Lotacao.txt
 A fonte de dados __Usuários__ possui os seguintes dados (com os cargos dos usuários é possível distinguí-los entre administrativo, advogado da união, procurador federal, por exemplo):
 
 - Identificador do Usuário;
+- Identificador da Unidade;
 - Nome do Usuário;
 - Indicador de Usuário Ativo ou Inativo; e
 - Cargo do Usuário.
@@ -220,23 +170,21 @@ Unidades <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Unidade.tx
 ```{r Processos_Final, echo = FALSE}
 
 Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
-               select (Processo_Judicial_ID, Pasta_ID, Setor_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
-               mutate(Setor_ID = as.numeric(Setor_ID)) %>% #transformo a coluna Setor_ID em numérico
-               mutate(Processo_Judicial_ID = as.numeric(Processo_Judicial_ID)) %>% #transformo a coluna Processo_Judicial_ID em numérico
-               mutate(Pasta_ID = as.numeric(Pasta_ID)) %>% #transformo a coluna Pasta_ID em numérico
+               select (Processo_Judicial_ID, Pasta_ID, Unidade_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
                filter(!is.na(Processo_Judicial_ID)) %>% #elimino os Processo_Judicial_ID nulos
   inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
-               select(Processo_Judicial_ID, Processo_Judicial_Valor_Causa)) %>% #faço aqui a seleção das colunas desejadas
-  inner_join(Setores %>% #faço um inner join com o frame Setores
-               mutate(Setor_ID = as.numeric(Setor_ID)) %>% #transformo a coluna Setor_ID em numérico
-               select(Setor_ID, Unidade_ID, Setor_Nome, Setor_Sigla)) %>% #faço aqui a seleção das colunas desejadas
-  
+               select(Processo_Judicial_ID, Processo_Judicial_Valor_Causa, Processo_Judicial_Ano_Ajuizamento)) %>% #faço aqui a seleção das colunas desejadas
   inner_join(Unidades %>% #faço um inner join com o frame Unidades
                select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_UF)) #faço aqui a seleção das colunas desejadas
 
 
 #O objetivo aqui é unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
 
+Unidades_Mais_Processos <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
+  group_by(Unidade_Sigla) %>% #agrupo por Unidade_Sigla
+  summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto qtde_processos
+  arrange(desc(Qtde_processos)) %>% #ordeno, de forma decrescente, o resultado do objeto criado anteriormente
+  head(10) #restrinjo meu resultado a apenas as 10 primeiras linhas
 
 ```
 

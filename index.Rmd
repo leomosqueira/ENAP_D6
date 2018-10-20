@@ -204,7 +204,7 @@ ggplot(data = Unidades_Mais_Processos,
             hjust = 0.5) + #ajuste de posição horizontal do quantitativo 
 labs(x = "Ano", #nomeia o eixo X
      y = "Quantidade de processos em toda a AGU")+ #nomeia o eixo Y
-  guides(fill=FALSE) #oculta a legenda do gráfico
+  theme(legend.position="none") #oculta a legenda do gráfico
 
 
 ```
@@ -286,19 +286,88 @@ variacao_media %>%
             vjust = -0.5, #ajustes de posição vertical e 
             hjust = -0.5) +  #de posição horizontal
   labs(x = "Regiões das Unidades da AGU",
-       y = "Quantidade média de processos")
-
+       y = "Quantidade média de processos") +
+  theme(legend.position="none") #oculta a legenda do gráfico
+  
 ```
 
 ## Análise
 
 Observa-se no gráfico apresentado que a margem de erro no cálculo da média de processos por região é muito grande para a primeira e segunda regiões, mas isso se deve ao fato de que em cada uma delas há muito mais processos finalizados em 2017. 
 
-É possível deduzir que o ano eleitoral influencie no andamento dos julgamentos dos processos judiciais em trâmite.
+É possível deduzir que o ano eleitoral influencia no andamento dos julgamentos dos processos judiciais em trâmite.
 
-## Slide with Plot
+## Médias de processos por Unidade
 
-```{r pressure}
-plot(pressure)
+```{r Processos_Final_5, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
+
+Processos_Judiciais_Final2 <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
+               select (Processo_Judicial_ID, Pasta_ID, Unidade_ID) %>% #faço aqui a seleção das colunas desejadas
+               filter(!is.na(Processo_Judicial_ID)) %>% #elimino os Processo_Judicial_ID nulos
+  inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
+               select(Processo_Judicial_ID, Processo_Judicial_Ano_Ajuizamento)) %>% #faço aqui a seleção das colunas desejadas
+  inner_join(Unidades %>% #faço um inner join com o frame Unidades
+               select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_Regiao, Unidade_UF)) #faço aqui a seleção das colunas desejadas
+
+
+Unidades_Mais_Processos3 <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
+  group_by(Unidade_Sigla, Unidade_Regiao, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Unidade_Regiao e Ano_Ajuizamento
+  summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto Qtde_processos
+  spread(Processo_Judicial_Ano_Ajuizamento, Qtde_processos, fill = 0) %>% #a coluna "Processo_Judicial_Ano_Ajuizamento" vira duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver falor, "fill" (preenche) com zero.
+  arrange(desc(`2017`,`2018`)) %>% #ordeno, de forma decrescente e pelas colunas `2017` e `2018`, o resultado do objeto criado anteriormente
+  mutate(total2 = sum(`2017`,`2018`)) %>% #crio uma coluna com os totais de processos dos dois anos por linha
+  filter(Unidade_Sigla!="PGU") %>% #filtro o resultado, eliminando a linha em que a Unidade_Sigla é PGU
+  head(6) #restrinjo meu resultado a apenas as 30 primeiras linhas
+
+
+amostra2 <- Unidades_Mais_Processos3 %>%
+  as_survey(fpc = total2) #a contagem total de dados = o objeto "total"
+
+variacao_media2 <- amostra2 %>%
+  mutate(api_diff=`2017`-`2018`) %>% #crio uma NOVA COLUNA com a diferença das quantidades de processos de 2017 e 2018
+  group_by(Unidade_Sigla) %>% #se a minha COMPARAÇÃO está por Região e Sigla, posso escolher e o mais adequado é agrupar por Região
+  summarize(api_diff_media = survey_mean(api_diff, #quando eu quero A MÉDIA DE UMA VARIÁVEL QUANTITATIVA, uso survey_mean. EU PRECISO NOMEAR ESSA VARIÁVEL
+                                         #quando a variável não for quantitativa, mas qualitativa, o survey_mean retorna PROPORÇÕES do group by.
+                                         #se eu não coloco nada dentro do survey_mean, ele retorna PROPORÇÕES do group by.
+                                         #o summarize vem sempre depois de um group_by
+                                         #se em algum momento o summarize vem sem o group_by antes, eu sumarizo pelo data.frame inteiro. Sem ser por grupo.
+                                         vartype = "ci")) #"ci" é o vartype para intervalos de confiança.
+
+
+variacao_media2 %>% 
+  ggplot(aes(x = Unidade_Sigla, #dentro do ggplot eu coloco as estéticas (AES) de cor, forma. No meu eixo X eu quero Região.
+             y = api_diff_media,  #no meu Y eu quero a diferença média.
+             fill = Unidade_Sigla, #quero adicionar um preenchimento nas barras. FILL deixa as colunas cinzas
+             color = Unidade_Sigla)) + #color gera cor para as barras. É NECESSÁRIO TER FILL para ter COLOR
+             #ymax = api_diff_media_upp, #preciso de ymax e ymin para construir uma barra de erro. _upp no máximo da variável criada anteriormente
+             #ymin = api_diff_media_low)) + #_low no mínimo da variável criada anteriormente
+  #essas duas variáveis aqui em cima (api_diff_media_upp e api_diff_media_low) foram criadas ali no "summarize" quando especifiquei que meu vartype ? "ci".
+  #Automaticamente o survey_mean cria uma diferença máxima e uma diferença mínima
+  geom_bar(stat = "identity", #aqui estou construindo um gráfico de barras, ou seja, criando uma camada das barras. 
+           #Construo as barras usando as estéticas que informei antes.
+           #stat = "identity" (como ele vai olhar o dado que entra). Ou seja, o tamanho das colunas vai ser exatamente o tamanho que está em Y
+           #significa que eu estou falando que as estéticas serão idênticas em X e Y
+           alpha = 0.6) + #É um outro atributo do geom_bar que significa "transparência". 
+  #É só um "embelezamento". Quanto menor o valor, mais clara fica a cor.
+
+  geom_text(aes(label=round(api_diff_media,0)), #geom_text adiciona mais uma camada ao gráfico. Uma camada de texto.
+            #label coloca nomes sobre as barras. Uso round para arredondar a média para 0 casas decimais.   
+            color = "black", #aqui eu mudo a cor do label/do texto, que é um número, para PRETO.  
+            size = 5, #aumento o tamanho do texto para 5 para ficar mais visível
+            #o número preto fica exatamente no meio da barra porque puxou as definições da estética, ou seja, está colocando o Y exatamente aonde está o Y
+            vjust = 2, #ajustes de posição vertical e 
+            hjust = 0.5) +  #de posição horizontal
+  labs(x = "Unidades da AGU com mais processos",
+       y = "Quantidade média de processos") +
+  theme(legend.position="none") #oculta a legenda do gráfico
+
 ```
+
+##
+
+Com base no gráfico anteriormente apresentado, define-se a probabilidade de que os advogados da união e os procuradores federais na unidade PRU1R sejam muito produtivos, já que a quantidade de processos finalizados nessa unidade é muito superior à das demais unidades, mesmo sendo a quantidade de usuários um pouco maior. 
+
+Essa mesma constatação se aplica, por exemplo, à unidade PUPR, que possui __pouco mais de um terço__ de usuários __a menos__ que na unidade PRU1R e uma quantidade de processos finalizados muito grande.
+
+A partir da tomada de ciência de que há assuntos diferentes para cada processo e graus de complexidade atribuídos a cada um destes assuntos, pode-se deduzir, também, que a unidade PRU2R possui usuários competentíssimos e muito produtivos, uma vez que com poucos funcionários essa unidade foi capaz de finalizar _____7.306_____ processos judiciais.
 

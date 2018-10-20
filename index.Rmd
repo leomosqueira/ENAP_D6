@@ -1,0 +1,249 @@
+---
+title: "O Volume de Trabalho Jurídico e demais Análises no Âmbito da Advocacia Geral da União (AGU)"
+author: "Leonardo Mosqueira"
+date: "18 de outubro de 2018"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Objeto
+
+Existe uma variável, no âmbito da AGU, tratada como um importante instrumento de decisão, chamada Volume de Trabalho Jurídico, ou VTJ. Esse quantitativo, calculado através de fórmulas compostas por índices, taxas, pesos, é utilizado, já há alguns anos, como insumo para a contagem de advogados da união necessários em cada unidade da AGU. O objetivo é tornar o órgão público sempre mais eficiente e eficaz em seus atendimentos e defesas à União.
+
+Embora não seja possível transpor aqui todos os detalhes do VTJ, ainda é possível simular seu cálculo e explicitar, através de gráficos, sua utilidade e seu embasamento, principalmente a quantidade de processos que tramitam pela AGU ou que estão sob os "cuidados" de cada advogado.
+
+## Objetivos
+
+- __Quais são essas quantidades?__
+
+- __Quantos processos estão sob os cuidados de cada unidade da AGU?__ 
+
+- __E a quantidade de funcionários em cada unidade, será que é o suficiente para a resolução dos processos no menor prazo possível?__
+
+## Contexto
+
+A __Advocacia Geral da União__ (AGU) possui procuradorias, escritórios e corregedorias espalhadas por todo o território nacional. Cada uma destas, consideradas Unidades da AGU, gera processos judiciais da própria região, os quais são separados em pastas (dossiês), ou os recebe de outras unidades para dar prosseguimento aos casos tratados. 
+
+Trabalham nas unidades, lotados em setores, os usuários do sistema Sapiens (uma ferramenta criada por um procurador da própria AGU e que se estabeleceu como a principal aplicação para manter dados referentes, principalmente, a pastas, processos, tarefas, atividades e usuários).
+
+##
+
+Nos processos interagem, através do Sapiens, usuários de diversos cargos e com diversos propósitos. O principal usuário, para o caso de processos judiciais (pois podem ser, também, administrativos), o Advogado da União, é o responsável por elaborar o documento e acompanhar seu julgamento.
+
+Para que os gestores da AGU especifiquem a _quantidade de advogados da união_ necessários para _suprirem algum déficit de produtividade e serviço_, é necessário contabilizar os processos em cada unidade, bem como a quantidade de usuários, dentre eles os advogados da união. 
+
+Esse déficit pode ser especificado buscando-se a quantidade de processos de que cada advogado está "cuidando". __O quantitativo de processos julgados/finalizados por unidade é chamado de Volume de Trabalho Jurídico.__
+
+## Desconsiderações 
+
+Nessas análises, em geral, não serão consideradas as complexidades dos assuntos dos processos, nem os pesos das classes de ação dos processos (variável que indica o grau de dificuldade de resolução de um processo de acordo com sua classe/classificação) e tampouco o quantitativo de tempo de deslocamento para o atendimento de algum processo aberto em uma unidade mas julgado em outra.
+
+# Método
+
+## 
+
+Foram resgatados da base de dados do Sapiens, utilizando a linguagem SQL, os dados de:
+
+- Processos Judiciais;
+- Pastas;
+- Setores;
+- Lotações;
+- Usuários (e cargos dos mesmos); e
+- Unidades.
+
+A partir destas consultas, foram gerados arquivos em formato texto e importados para o RStudio.
+
+Para algumas tabelas foram considerados apenas o ano 2018 devido à imensa quantidade de registros no banco de dados.
+
+# As telas seguintes tratarão da importação e tratamento dos dados
+
+## Processos Judiciais
+
+A primeira fonte de dados, __Processos Judiciais__, possui os seguintes dados:
+
+- Identificador do Processo Judicial;
+- Identificador do Órgão Julgador;
+- Valor da Causa do Processo Judicial;
+- Data de Ajuizamento do Processo Judicial;
+- Indicador de Processo Judicial Eletrônico; e
+- Número do Processo Judicial.
+
+```{r, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
+#
+#Macetinho!
+lista.de.pacotes = c("tidyverse","lubridate","janitor",
+                     "readxl","stringr","repmis","janitor",
+                     "survey","srvyr","scales") #aqui coloco a lista de pacotes que desejo carregar
+novos.pacotes <- lista.de.pacotes[!(lista.de.pacotes %in% #aqui insiro no objeto novos.pacotes aqueles que não estão na lista de pacotes instalados
+                                      installed.packages()[,"Package"])]
+if(length(novos.pacotes) > 0) {install.packages(novos.pacotes)} #se o objeto novos.pacotes tiver tamanho maior do que zero, instalo o que estiver dentro dele
+lapply(lista.de.pacotes, require, character.only=T)
+rm(lista.de.pacotes,novos.pacotes) #removo do R os objetos lista.de.pacotes e novos.pacotes
+gc() #garbage colector, limpa da memória o que eu não vou usar mais.
+
+```
+
+```{r Processos_Judiciais, echo = FALSE}
+
+Processos_Judiciais <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Processo_Judicial.txt", #endereço do arquivo na minha máquina
+                                  header = TRUE, #indicativo de cabeçalho no arquivo
+                                  dec = ".", #os decimais serão separados por "."
+                                  sep = "\t", #o separador das colunas será um espaço
+                                  na.strings = "NA", #se houverem células sem nada, colocar "NA" no lugar
+                                  fill = TRUE, 
+                                  quote = "", 
+                                  encoding = "latin1")
+```
+
+## Pastas (dossiês)
+
+A seguinte fonte de dados, __Pastas__, possui os seguintes dados:
+
+- Identificador da Pasta;
+- Identificador do Processo Judicial;
+- Identificador do Setor;
+- Numeração Única da Pasta (NUP);
+- Descrição da Pasta;
+- Data de Abertura da Pasta; e
+- Fase da Pasta.
+
+```{r Pastas, echo = FALSE}
+
+Pastas <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Pasta.txt", 
+                     header = TRUE, 
+                     dec = ".", 
+                     sep = "\t", 
+                     na.strings = "NA", 
+                     fill = TRUE, 
+                     quote = "", 
+                     encoding = "latin1")
+
+```
+
+## Setores
+
+A fonte de dados __Setores__ possui os seguintes dados:
+
+- Identificador do Setor;
+- Identificador da Unidade;
+- Nome do Setor;
+- Sigla do Setor; e
+- Indicador de Setor Ativo ou Inativo.
+
+```{r Setores, echo = FALSE}
+
+Setores <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Setor.txt", 
+                      header = TRUE, 
+                      dec = ".", 
+                      sep = "\t", 
+                      na.strings = "NA", 
+                      fill = TRUE, 
+                      quote = "", 
+                      encoding = "latin1"
+                      )
+
+```
+
+## Lotação
+
+A fonte de dados __Lotação__ possui os seguintes dados:
+
+- Identificador da Lotação;
+- Identificador do Setor;
+- Identificador do Usuário;
+- Data de Criação da Lotação;
+- Data de conclusão da Lotação (é a data em que o usuário é retirado dessa lotação); e
+- Indicador de Lotação Principal ou não.
+
+```{r Lotacao, echo = FALSE}
+
+Lotacao <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Lotacao.txt", 
+                      header = TRUE, 
+                      dec = ".", 
+                      sep = "\t", 
+                      na.strings = "NA", 
+                      fill = TRUE, 
+                      quote = "", 
+                      encoding = "latin1")
+
+```
+
+## Usuários
+
+A fonte de dados __Usuários__ possui os seguintes dados (com os cargos dos usuários é possível distinguí-los entre administrativo, advogado da união, procurador federal, por exemplo):
+
+- Identificador do Usuário;
+- Nome do Usuário;
+- Indicador de Usuário Ativo ou Inativo; e
+- Cargo do Usuário.
+
+
+```{r Usuarios, echo = FALSE}
+
+Usuarios <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Usuario.txt", 
+                       header = TRUE, 
+                       dec = ".", 
+                       sep = "\t", 
+                       na.strings = "NA", 
+                       fill = TRUE, 
+                       quote = "", 
+                       encoding = "latin1")
+
+```
+
+## Unidades
+
+A fonte de dados ___Unidades___ indica todas as unidades da AGU espalhadas pelo Brasil e possui os seguintes dados:
+
+- Identificador da Unidade;
+- Nome da Unidade;
+- Sigla da Unidade;
+- Região da Unidade;
+- Órgão Central da Unidade;
+- Unidade Federativa (UF) da Unidade; e
+- Indicador de Unidade Ativa ou Inativa.
+
+```{r Unidades, echo = FALSE}
+
+Unidades <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Unidade.txt", 
+                       header = TRUE, 
+                       sep = "\t", 
+                       encoding = "latin1")
+
+```
+
+## Processos Judiciais: Tabela Final
+
+```{r Processos_Final, echo = FALSE}
+
+Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
+               select (Processo_Judicial_ID, Pasta_ID, Setor_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
+               mutate(Setor_ID = as.numeric(Setor_ID)) %>% #transformo a coluna Setor_ID em numérico
+               mutate(Processo_Judicial_ID = as.numeric(Processo_Judicial_ID)) %>% #transformo a coluna Processo_Judicial_ID em numérico
+               mutate(Pasta_ID = as.numeric(Pasta_ID)) %>% #transformo a coluna Pasta_ID em numérico
+               filter(!is.na(Processo_Judicial_ID)) %>% #elimino os Processo_Judicial_ID nulos
+  inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
+               select(Processo_Judicial_ID, Processo_Judicial_Valor_Causa)) %>% #faço aqui a seleção das colunas desejadas
+  inner_join(Setores %>% #faço um inner join com o frame Setores
+               mutate(Setor_ID = as.numeric(Setor_ID)) %>% #transformo a coluna Setor_ID em numérico
+               select(Setor_ID, Unidade_ID, Setor_Nome, Setor_Sigla)) %>% #faço aqui a seleção das colunas desejadas
+  
+  inner_join(Unidades %>% #faço um inner join com o frame Unidades
+               select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_UF)) #faço aqui a seleção das colunas desejadas
+
+
+#O objetivo aqui é unir todas as informações de Unidades, Setores, Pastas e Processos, uma vez que cada unidade possui setores e nos setores são criadas pastas, compostas por processos judiciais.
+
+
+```
+
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+

@@ -65,9 +65,9 @@ A primeira fonte de dados, __Processos Judiciais__, possui os seguintes dados:
 - Identificador do Processo Judicial;
 - Identificador do Órgão Julgador;
 - Valor da Causa do Processo Judicial;
-- Ano de Ajuizamento do Processo Judicial;
 - Indicador de Processo Judicial Eletrônico; e
 - Número do Processo Judicial.
+- Ano de Ajuizamento do Processo Judicial;
 
 ```{r, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 #
@@ -83,6 +83,7 @@ rm(lista.de.pacotes,novos.pacotes) #removo do R os objetos lista.de.pacotes e no
 gc() #garbage colector, limpa da memória o que eu não vou usar mais.
 
 ```
+
 
 ```{r Processos_Judiciais, echo = FALSE}
 
@@ -100,13 +101,9 @@ Processos_Judiciais <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho
 
 A seguinte fonte de dados, __Pastas__, possui os seguintes dados:
 
-- Identificador da Pasta;
-- Identificador do Processo Judicial;
-- Identificador da Unidade;
-- Numeração Única da Pasta (NUP);
-- Descrição da Pasta;
-- Data de Abertura da Pasta; e
-- Fase da Pasta.
+- Identificador da Unidade; e
+- Identificador do Processo Judicial.
+
 
 ```{r Pastas, echo = FALSE}
 
@@ -124,12 +121,11 @@ Pastas <- read.table("F:/Especialização ENAP/D6/Arquivos_Trabalho/Pasta.txt",
 
 A fonte de dados __Usuários__ possui os seguintes dados (com os cargos dos usuários é possível distinguí-los entre administrativo, advogado da união, procurador federal, por exemplo):
 
-- Identificador do Usuário;
 - Identificador da Unidade;
+- Identificador do Usuário;
 - Nome do Usuário;
 - Indicador de Usuário Ativo ou Inativo; e
 - Cargo do Usuário.
-
 
 ```{r Usuarios, echo = FALSE}
 
@@ -174,7 +170,7 @@ A princípio, é possível constatar a quantidade de processos na __AGU__, as un
 ```{r Processos_Final_1, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 
 Processos_Judiciais_Final <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
-               select (Processo_Judicial_ID, Pasta_ID, Unidade_ID, Pasta_NUP) %>% #faço aqui a seleção das colunas desejadas
+               select (Processo_Judicial_ID, Unidade_ID) %>% #faço aqui a seleção das colunas desejadas
                filter(!is.na(Processo_Judicial_ID)) %>% #elimino os Processo_Judicial_ID nulos
   inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
                select(Processo_Judicial_ID, Processo_Judicial_Valor_Causa, Processo_Judicial_Ano_Ajuizamento)) %>% #faço aqui a seleção das colunas desejadas
@@ -205,7 +201,6 @@ ggplot(data = Unidades_Mais_Processos,
 labs(x = "Ano", #nomeia o eixo X
      y = "Quantidade de processos em toda a AGU")+ #nomeia o eixo Y
   theme(legend.position="none") #oculta a legenda do gráfico
-
 
 ```
 
@@ -297,69 +292,72 @@ Observa-se no gráfico apresentado que a margem de erro no cálculo da média de
 
 É possível deduzir que o ano eleitoral influencia no andamento dos julgamentos dos processos judiciais em trâmite.
 
-## Médias de processos por Unidade
+## Quantidades de processos e usuários por Unidade
 
 ```{r Processos_Final_5, message = FALSE, warning = FALSE, results= FALSE, echo = FALSE}
 
-Processos_Judiciais_Final2 <- Pastas %>% #crio o objeto Processos_Judiciais_Final que recebe o frame Pastas, com as condições abaixo
-               select (Processo_Judicial_ID, Pasta_ID, Unidade_ID) %>% #faço aqui a seleção das colunas desejadas
+Processos_Judiciais_Final2 <- Usuarios %>% #crio o objeto Processos_Judiciais_Final2 que recebe o frame Usuarios, com as condições abaixo
+               select (Unidade_ID, usuario_id, Usuario_Cargo) %>% #faço aqui a seleção das colunas desejadas
+               filter(Usuario_Cargo %in% c('PROCURADOR FEDERAL','ADVOGADO DA UNIÃO')) %>% #filtro o resultado pelos cargos desejados
+  inner_join(Unidades %>% #faço um inner join com o frame Unidades
+               select (Unidade_ID, Unidade_Sigla), by = "Unidade_ID") %>% #faço aqui a seleção das colunas desejadas
+  inner_join(Pastas %>% #faço um inner join com o frame Pastas
+               select (Processo_Judicial_ID, Unidade_ID)) %>% #faço aqui a seleção das colunas desejadas
                filter(!is.na(Processo_Judicial_ID)) %>% #elimino os Processo_Judicial_ID nulos
   inner_join(Processos_Judiciais %>% #faço um inner join com o frame Processos_Judiciais
-               select(Processo_Judicial_ID, Processo_Judicial_Ano_Ajuizamento)) %>% #faço aqui a seleção das colunas desejadas
-  inner_join(Unidades %>% #faço um inner join com o frame Unidades
-               select (Unidade_ID, Unidade_Sigla, Unidade_Orgao_central, Unidade_Regiao, Unidade_UF)) #faço aqui a seleção das colunas desejadas
+               select(Processo_Judicial_ID, Processo_Judicial_Ano_Ajuizamento)) #faço aqui a seleção das colunas desejadas
 
+Unidades_Mais_Processos3 <- Processos_Judiciais_Final2 %>% #atribuo Processos_Judiciais_Final2 a um novo objeto
+  group_by(Unidade_Sigla, Processo_Judicial_ID, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Processo_Judicial_ID e Processo_Judicial_Ano_Ajuizamento
+  summarize(Qtde_Usuarios = n()) %>% #sumarizo pela contagem de linhas e atribuo essa quantidade a um novo objeto
+  group_by(Unidade_Sigla, Processo_Judicial_Ano_Ajuizamento, Qtde_Usuarios) %>% #agrupo por Unidade_Sigla, Processo_Judicial_Ano_Ajuizamento e Qtde_Usuarios
+  summarize(Qtde_Processos = n()) %>% #sumarizo pela contagem de linhas e atribuo essa quantidade a um novo objeto
+  gather(key="Proc_Us", value = "Qtdes_Proc_Us", Qtde_Processos, Qtde_Usuarios) %>% #empilho as colunas Qtde_Processos e Qtde_Usuarios numa nova coluna chamada Qtdes_Proc_Us e os nomes das colunas empilhadas numa outra chamada Proc_Us
+  spread(Processo_Judicial_Ano_Ajuizamento, Qtdes_Proc_Us, fill = 0) %>% #a coluna "Processo_Judicial_Ano_Ajuizamento" vira duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver valor, "fill" (preenche) com zero.
+  arrange(desc(`2017`,`2018`)) #ordeno, de forma decrescente e pelas colunas `2017` e `2018`, o resultado do objeto criado anteriormente
 
-Unidades_Mais_Processos3 <- Processos_Judiciais_Final %>% #atribuo Processos_Judiciais_Final a um novo objeto
-  group_by(Unidade_Sigla, Unidade_Regiao, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Unidade_Regiao e Ano_Ajuizamento
-  summarize(Qtde_processos = n()) %>% #sumarizo a quantidade de registros em um novo objeto Qtde_processos
-  spread(Processo_Judicial_Ano_Ajuizamento, Qtde_processos, fill = 0) %>% #a coluna "Processo_Judicial_Ano_Ajuizamento" vira duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver falor, "fill" (preenche) com zero.
-  arrange(desc(`2017`,`2018`)) %>% #ordeno, de forma decrescente e pelas colunas `2017` e `2018`, o resultado do objeto criado anteriormente
-  mutate(total2 = sum(`2017`,`2018`)) %>% #crio uma coluna com os totais de processos dos dois anos por linha
-  filter(Unidade_Sigla!="PGU") %>% #filtro o resultado, eliminando a linha em que a Unidade_Sigla é PGU
-  head(6) #restrinjo meu resultado a apenas as 30 primeiras linhas
+  #aqui eu anoto as seis primeiras siglas de unidades, pois são as que têm mais processos nos dois anos:
+  #PRU1R (se repete), PRU2R (se repete), PRU4R (se repete), PUPR, PRU3R, PRU5R.
+  
+  #E então executo o processo de novo:
+  
+Unidades_Mais_Processos3 <- Processos_Judiciais_Final2 %>% #atribuo Processos_Judiciais_Final2 a um novo objeto
+  group_by(Unidade_Sigla, Processo_Judicial_ID, Processo_Judicial_Ano_Ajuizamento) %>% #agrupo por Unidade_Sigla, Processo_Judicial_ID e Processo_Judicial_Ano_Ajuizamento
+  summarize(Qtde_Usuarios = n()) %>% #sumarizo pela contagem de linhas e atribuo essa quantidade a um novo objeto
+  group_by(Unidade_Sigla, Processo_Judicial_Ano_Ajuizamento, Qtde_Usuarios) %>% #agrupo por Unidade_Sigla, Processo_Judicial_Ano_Ajuizamento e Qtde_Usuarios
+  summarize(Qtde_Processos = n()) %>% #sumarizo pela contagem de linhas e atribuo essa quantidade a um novo objeto
+  gather(key="Proc_Us", value = "Qtdes_Proc_Us", Qtde_Processos, Qtde_Usuarios) %>% #empilho novamente as colunas Qtde_Processos e Qtde_Usuarios numa nova coluna chamada Qtdes_Proc_Us e os nomes das colunas empilhadas numa outra chamada Proc_Us
+  spread(Processo_Judicial_Ano_Ajuizamento, Qtdes_Proc_Us, fill = 0) #e repito o processo de transformar a coluna "Processo_Judicial_Ano_Ajuizamento" em duas colunas, em cada uma delas ficam os valores de "Qtde_processos" e aonde não houver valor, "fill" (preenche) com zero.
 
+Unidades_Mais_Proc_Us <- Unidades_Mais_Processos3 %>% #atribuo Processos_Judiciais_Final2 a um novo objeto 
+  select (Unidade_Sigla, Proc_Us, `2017`, `2018`) %>% #faço aqui a seleção das colunas desejadas
+    filter(Unidade_Sigla %in% c("PRU1R", "PRU2R", "PRU4R", "PUPR", "PRU3R", "PRU5R")) %>% #filtro por apenas aquelas unidades que anotei anteriormente
+  mutate(Total = case_when(`2017` < 500 ~ `2017`, #crio uma nova coluna que recebe valores de acordo com uma regra, visto que se estivermos falando de usuários,
+                           `2017` > 500 ~ sum(`2017`,`2018`))) #as quantidades não devem ser somadas.
 
-amostra2 <- Unidades_Mais_Processos3 %>%
-  as_survey(fpc = total2) #a contagem total de dados = o objeto "total"
+amostra2 <- Unidades_Mais_Proc_Us %>%
+  as_survey(fpc = Total) #a contagem total de dados = o objeto "Total"
 
-variacao_media2 <- amostra2 %>%
-  mutate(api_diff=`2017`-`2018`) %>% #crio uma NOVA COLUNA com a diferença das quantidades de processos de 2017 e 2018
-  group_by(Unidade_Sigla) %>% #se a minha COMPARAÇÃO está por Região e Sigla, posso escolher e o mais adequado é agrupar por Região
-  summarize(api_diff_media = survey_mean(api_diff, #quando eu quero A MÉDIA DE UMA VARIÁVEL QUANTITATIVA, uso survey_mean. EU PRECISO NOMEAR ESSA VARIÁVEL
-                                         #quando a variável não for quantitativa, mas qualitativa, o survey_mean retorna PROPORÇÕES do group by.
-                                         #se eu não coloco nada dentro do survey_mean, ele retorna PROPORÇÕES do group by.
-                                         #o summarize vem sempre depois de um group_by
-                                         #se em algum momento o summarize vem sem o group_by antes, eu sumarizo pelo data.frame inteiro. Sem ser por grupo.
-                                         vartype = "ci")) #"ci" é o vartype para intervalos de confiança.
+#demais explicações iguais às do último gráfico
 
+Totais <- amostra2 %>%
+  mutate(api_diff=`2017`-`2018`) %>%
+  group_by (Unidade_Sigla) %>%
+  summarize(api_diff_media = survey_mean(api_diff, 
+                                         vartype = "ci"))
 
-variacao_media2 %>% 
-  ggplot(aes(x = Unidade_Sigla, #dentro do ggplot eu coloco as estéticas (AES) de cor, forma. No meu eixo X eu quero Região.
-             y = api_diff_media,  #no meu Y eu quero a diferença média.
-             fill = Unidade_Sigla, #quero adicionar um preenchimento nas barras. FILL deixa as colunas cinzas
-             color = Unidade_Sigla)) + #color gera cor para as barras. É NECESSÁRIO TER FILL para ter COLOR
-             #ymax = api_diff_media_upp, #preciso de ymax e ymin para construir uma barra de erro. _upp no máximo da variável criada anteriormente
-             #ymin = api_diff_media_low)) + #_low no mínimo da variável criada anteriormente
-  #essas duas variáveis aqui em cima (api_diff_media_upp e api_diff_media_low) foram criadas ali no "summarize" quando especifiquei que meu vartype ? "ci".
-  #Automaticamente o survey_mean cria uma diferença máxima e uma diferença mínima
-  geom_bar(stat = "identity", #aqui estou construindo um gráfico de barras, ou seja, criando uma camada das barras. 
-           #Construo as barras usando as estéticas que informei antes.
-           #stat = "identity" (como ele vai olhar o dado que entra). Ou seja, o tamanho das colunas vai ser exatamente o tamanho que está em Y
-           #significa que eu estou falando que as estéticas serão idênticas em X e Y
-           alpha = 0.6) + #É um outro atributo do geom_bar que significa "transparência". 
-  #É só um "embelezamento". Quanto menor o valor, mais clara fica a cor.
+Unidades_Mais_Proc_Us %>% 
+  ggplot(aes(x = Unidade_Sigla,
+             y = Total,
+             fill = Proc_Us, 
+             color = Proc_Us)) + 
+  geom_bar(stat = "identity", 
+           alpha = 0.6,
+           position = "dodge") + 
 
-  geom_text(aes(label=round(api_diff_media,0)), #geom_text adiciona mais uma camada ao gráfico. Uma camada de texto.
-            #label coloca nomes sobre as barras. Uso round para arredondar a média para 0 casas decimais.   
-            color = "black", #aqui eu mudo a cor do label/do texto, que é um número, para PRETO.  
-            size = 5, #aumento o tamanho do texto para 5 para ficar mais visível
-            #o número preto fica exatamente no meio da barra porque puxou as definições da estética, ou seja, está colocando o Y exatamente aonde está o Y
-            vjust = 2, #ajustes de posição vertical e 
-            hjust = 0.5) +  #de posição horizontal
   labs(x = "Unidades da AGU com mais processos",
-       y = "Quantidade média de processos") +
-  theme(legend.position="none") #oculta a legenda do gráfico
+       y = "Quantidade de processos e de Usuários")
+  
 
 ```
 
@@ -367,7 +365,8 @@ variacao_media2 %>%
 
 Com base no gráfico anteriormente apresentado, define-se a probabilidade de que os advogados da união e os procuradores federais na unidade PRU1R sejam muito produtivos, já que a quantidade de processos finalizados nessa unidade é muito superior à das demais unidades, mesmo sendo a quantidade de usuários um pouco maior. 
 
-Essa mesma constatação se aplica, por exemplo, à unidade PUPR, que possui __pouco mais de um terço__ de usuários __a menos__ que na unidade PRU1R e uma quantidade de processos finalizados muito grande.
+Essa mesma constatação se aplica, por exemplo, à unidade PUPR, que possui __poucos__ usuários __a menos__ que na unidade PRU1R e uma quantidade de processos finalizados muito grande, diferente da PRU5R que, mesmo com a quantidade de usuários aparentemente próxima da PUPR, finalizou muitos processos a menos.
 
-A partir da tomada de ciência de que há assuntos diferentes para cada processo e graus de complexidade atribuídos a cada um destes assuntos, pode-se deduzir, também, que a unidade PRU2R possui usuários competentíssimos e muito produtivos, uma vez que com poucos funcionários essa unidade foi capaz de finalizar _____7.306_____ processos judiciais.
+Entretanto, como já foi dito, há assuntos diferentes para cada processo e graus de complexidade atribuídos a cada um destes assuntos, confirmando o caráter de probabilidades às constatações anteriormente realizadas.
 
+# Contato: leomosqueira@gmail.com
